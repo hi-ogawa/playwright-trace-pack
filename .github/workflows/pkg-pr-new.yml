@@ -31,4 +31,4 @@ jobs:
 
       - run: pnpm build
 
-      - run: pnpm exec pkg-pr-new publish --no-compact .
+      - run: pnpm exec pkg-pr-new publish --no-compact --commentWithSha .
