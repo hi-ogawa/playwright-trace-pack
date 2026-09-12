@@ -22,14 +22,16 @@ Directories are searched recursively for files named `trace.zip` or `*.trace.zip
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-  use: { trace: "on" },
+  use: { trace: "retain-on-failure" },
   reporter: [["line"], ["@hiogawa/playwright-trace-pack/reporter"]],
 });
 ```
 
-The reporter collects all available Playwright trace attachments and creates `trace-pack.html` in the first configured project’s `outputDir`, normally `test-results`, after the test run. This also respects a custom output directory or Playwright’s `--output` option.
+The reporter packs every Playwright trace attachment into `trace-pack.html` in the first configured project’s `outputDir`, normally `test-results`, after the test run. This also respects a custom output directory or Playwright’s `--output` option.
 
-Reporter options are optional. Use `include: "failed"` to exclude passed and skipped tests, or `outputFile` to choose a different path. Relative `outputFile` paths resolve from the Playwright config directory.
+Use Playwright’s `use.trace` option to control which traces are retained. For example, `"retain-on-failure"` keeps traces for failed tests, while `"on"` keeps traces for all tests.
+
+Reporter options are optional. Use `outputFile` to choose a different path. Relative `outputFile` paths resolve from the Playwright config directory.
 
 ## Example
 

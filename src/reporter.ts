@@ -5,7 +5,6 @@ import type { FullConfig, Reporter, TestCase, TestResult } from "@playwright/tes
 import { packTraces, type TraceEntry } from "./index.js";
 
 export interface TracePackReporterOptions {
-  include?: "all" | "failed";
   outputFile?: string;
   title?: string;
   viewerUrl?: string;
@@ -28,12 +27,6 @@ export default class TracePackReporter implements Reporter {
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
-    if (
-      this.options.include === "failed" &&
-      (result.status === "passed" || result.status === "skipped")
-    )
-      return;
-
     const retry = result.retry ? ` · retry ${result.retry}` : "";
     const title = `${test.titlePath().filter(Boolean).join(" › ")}${retry}`;
 
