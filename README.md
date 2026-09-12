@@ -83,3 +83,25 @@ pnpm lint
 pnpm typecheck
 pnpm test
 ```
+
+## Excluding response bodies
+
+Large downloads such as soundfonts can dominate trace size even when they are not needed to render DOM snapshots. Filter these bodies while packing:
+
+```ts
+reporter: [
+  ["line"],
+  ["@hiogawa/playwright-trace-pack/reporter", {
+    excludeResponseBody: ({ url, mimeType }) =>
+      new URL(url).pathname.endsWith(".sf2") || mimeType === "application/wasm",
+  }],
+],
+```
+
+The same `excludeResponseBody` callback is available on `packTraces`. The CLI accepts a repeatable regular expression matched against the full response URL:
+
+```sh
+pnpm exec playwright-trace-pack test-results --exclude-response-body '\.sf2(?:\?|$)' --exclude-response-body '\.wasm(?:\?|$)'
+```
+
+Filtering keeps actions, DOM snapshots, and network metadata, but selected response bodies will no longer be available in the viewer. Keep CSS, images, and fonts needed by the snapshots. A resource shared with another retained response, snapshot, or attachment stays in the ZIP. Filtering changes only the embedded copy, so the original trace ZIP remains intact. Without a filter, ZIP bytes are embedded unchanged.

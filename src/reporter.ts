@@ -2,10 +2,11 @@ import { dirname, resolve } from "node:path";
 
 import type { FullConfig, Reporter, TestCase, TestResult } from "@playwright/test/reporter";
 
-import { packTraces, type TraceEntry } from "./index.js";
+import { packTraces, type PackOptions, type TraceEntry } from "./index.js";
 
 export interface TracePackReporterOptions {
   outputFile?: string;
+  excludeResponseBody?: PackOptions["excludeResponseBody"];
   title?: string;
   viewerUrl?: string;
 }
@@ -45,6 +46,7 @@ export default class TracePackReporter implements Reporter {
 
     await packTraces(this.entries, {
       outputFile: this.outputFile,
+      excludeResponseBody: this.options.excludeResponseBody,
       title: this.options.title,
       viewerUrl: this.options.viewerUrl,
     });

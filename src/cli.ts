@@ -6,6 +6,7 @@ import { findTraceFiles, packTraces } from "./index.js";
 
 interface CliOptions {
   inputs: string[];
+  excludeResponseBodies: RegExp[];
   outputFile?: string;
   title?: string;
   viewerUrl?: string;
@@ -30,6 +31,9 @@ async function main(): Promise<void> {
     })),
     {
       outputFile,
+      excludeResponseBody: options.excludeResponseBodies.length
+        ? ({ url }) => options.excludeResponseBodies.some((pattern) => pattern.test(url))
+        : undefined,
       title: options.title,
       viewerUrl: options.viewerUrl,
     },
@@ -41,7 +45,7 @@ async function main(): Promise<void> {
 }
 
 function parseArguments(arguments_: string[]): CliOptions {
-  const options: CliOptions = { inputs: [] };
+  const options: CliOptions = { inputs: [], excludeResponseBodies: [] };
 
   for (let index = 0; index < arguments_.length; index++) {
     const argument = arguments_[index];
@@ -51,6 +55,10 @@ function parseArguments(arguments_: string[]): CliOptions {
     }
     if (argument === "-o" || argument === "--output") {
       options.outputFile = requireValue(arguments_, ++index, argument);
+      continue;
+    }
+    if (argument === "--exclude-response-body") {
+      options.excludeResponseBodies.push(new RegExp(requireValue(arguments_, ++index, argument)));
       continue;
     }
     if (argument === "--title") {
@@ -86,6 +94,7 @@ Pack one or more Playwright trace ZIP files into a single HTML file.
 
 Options:
   -o, --output <file>  Output HTML file
+  --exclude-response-body <regex>  Omit bodies for matching URLs (repeatable)
   --title <title>      Document and sidebar title
   --viewer <url>       Trace Viewer URL
   -h, --help           Show this help`);

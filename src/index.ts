@@ -1,6 +1,10 @@
 import { promises as fs } from "node:fs";
 import { basename, dirname, relative, resolve } from "node:path";
 
+import { filterTrace, type TraceResponse } from "./filter-trace.js";
+
+export type { TraceResponse } from "./filter-trace.js";
+
 export interface TraceEntry {
   data?: Uint8Array;
   path?: string;
@@ -9,6 +13,7 @@ export interface TraceEntry {
 
 export interface PackOptions {
   outputFile: string;
+  excludeResponseBody?: (response: TraceResponse) => boolean;
   title?: string;
   viewerUrl?: string;
 }
@@ -28,7 +33,10 @@ export async function packTraces(entries: TraceEntry[], options: PackOptions): P
       if (!entry.path && !entry.data)
         throw new Error(`Trace ${index + 1} must provide either path or data`);
 
-      const data = entry.data ?? (await fs.readFile(resolve(entry.path!)));
+      const original = entry.data ?? (await fs.readFile(resolve(entry.path!)));
+      const data = options.excludeResponseBody
+        ? filterTrace(original, options.excludeResponseBody)
+        : original;
       const defaultTitle = entry.path
         ? relative(process.cwd(), resolve(entry.path))
         : `Trace ${index + 1}`;
