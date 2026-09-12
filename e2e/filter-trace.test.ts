@@ -160,7 +160,14 @@ test("filtered trace keeps styled DOM snapshots in the official viewer", async (
 
   // Open the filtered trace and inspect its recorded heading and image.
   await page.goto(pathToFileURL(htmlPath).href);
-  await page.getByRole("button", { name: "Open trace", exact: true }).click();
+  await expect(page.locator("#sidebar")).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Filter traces" })).toBeVisible();
+  await expect(page.locator("#status")).toHaveText("Select a trace from the sidebar.");
+  const traceButton = page.locator("#traces .trace");
+  await expect(traceButton).toHaveCount(1);
+  await expect(traceButton).toHaveAttribute("aria-current", "false");
+  await traceButton.click();
+  await expect(traceButton).toHaveAttribute("aria-current", "true");
   const viewer = page.frameLocator("#viewer");
   await viewer.getByRole("treeitem").filter({ hasText: "Click" }).click();
   await viewer.getByText("After", { exact: true }).first().click();

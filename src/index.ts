@@ -112,8 +112,8 @@ function renderTracePack(
     * { box-sizing: border-box; }
     html, body, #app { width: 100%; height: 100%; margin: 0; }
     body { overflow: hidden; background: Canvas; color: CanvasText; }
-    #app { display: grid; grid-template-columns: ${traces.length > 1 ? "var(--sidebar-width) minmax(0, 1fr)" : "minmax(0, 1fr)"}; overflow: hidden; }
-    #sidebar { position: relative; display: ${traces.length > 1 ? "flex" : "none"}; min-width: 0; overflow: hidden; flex-direction: column; border-right: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
+    #app { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); overflow: hidden; }
+    #sidebar { position: relative; display: flex; min-width: 0; overflow: hidden; flex-direction: column; border-right: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
     #sidebar h1 { margin: 0; padding: 16px; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
     #filter { margin: 0 12px 10px; padding: 7px 9px; border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); border-radius: 5px; background: Canvas; color: CanvasText; }
     #traces { min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 0 8px 12px; }
@@ -129,7 +129,6 @@ function renderTracePack(
     #viewer { display: block; width: 100%; max-width: 100%; height: 100%; min-width: 0; border: 0; }
     #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 24px; background: Canvas; color: CanvasText; text-align: center; }
     #status[hidden] { display: none; }
-    #status button { padding: 8px 12px; border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); border-radius: 5px; background: Canvas; color: CanvasText; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -193,16 +192,7 @@ function renderTracePack(
     }
 
     function showTraceSelection() {
-      status.replaceChildren()
-      const message = document.createElement('span')
-      message.textContent = traces.length === 1 ? 'Open the embedded trace.' : 'Select a trace from the sidebar.'
-      status.append(message)
-      if (traces.length === 1) {
-        const button = document.createElement('button')
-        button.textContent = 'Open trace'
-        button.addEventListener('click', () => selectTrace(traces[0]))
-        status.append(button)
-      }
+      status.textContent = 'Select a trace from the sidebar.'
       status.hidden = false
     }
 
