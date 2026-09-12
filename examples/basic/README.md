@@ -1,6 +1,6 @@
 # Basic example
 
-This fixture runs two passing Playwright tests with tracing enabled and uses the local `playwright-trace-pack` reporter to create one HTML file containing both traces.
+This fixture runs two passing Playwright tests with tracing enabled and uses the local `@hiogawa/playwright-trace-pack` reporter to create one HTML file containing both traces.
 
 From the repository root:
 

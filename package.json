@@ -1,5 +1,5 @@
 {
-  "name": "playwright-trace-pack",
+  "name": "@hiogawa/playwright-trace-pack",
   "version": "0.0.0",
   "private": true,
   "bin": {

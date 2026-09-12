@@ -1,4 +1,4 @@
-# playwright-trace-pack
+# @hiogawa/playwright-trace-pack
 
 Pack one or more Playwright trace ZIP files into a single HTML file that opens them in the official Playwright Trace Viewer.
 
@@ -7,11 +7,11 @@ The trace data is embedded in the generated file. The viewer itself is loaded fr
 ## CLI
 
 ```sh
-pnpm dlx playwright-trace-pack test-results
+pnpm dlx @hiogawa/playwright-trace-pack test-results
 ```
 
 ```sh
-pnpm dlx playwright-trace-pack test-results/foo/trace.zip --output trace.html
+pnpm dlx @hiogawa/playwright-trace-pack test-results/foo/trace.zip --output trace.html
 ```
 
 Directories are searched recursively for files named `trace.zip` or `*.trace.zip`. When multiple traces are found, the generated page includes a searchable trace picker.
@@ -25,7 +25,7 @@ export default defineConfig({
   reporter: [
     ["line"],
     [
-      "playwright-trace-pack/reporter",
+      "@hiogawa/playwright-trace-pack/reporter",
       {
         outputFile: "playwright-traces.html",
         include: "failed",
