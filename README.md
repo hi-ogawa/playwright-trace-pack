@@ -4,14 +4,24 @@ Pack one or more Playwright trace ZIP files into a single HTML file that opens t
 
 The trace data is embedded in the generated file. The viewer itself is loaded from `https://trace.playwright.dev`, so the result is a single-file artifact but is not available offline.
 
+## Installation
+
+Choose a build from [pkg.pr.new](https://pkg.pr.new/~/hi-ogawa/playwright-trace-pack) and install its preview URL:
+
+```sh
+pnpm add -D "https://pkg.pr.new/hi-ogawa/playwright-trace-pack/@hiogawa/playwright-trace-pack@<commit>"
+```
+
+Replace `<commit>` with the commit SHA shown for the build you want. Use this preview installation for both the CLI and the Playwright reporter.
+
 ## CLI
 
 ```sh
-pnpm dlx @hiogawa/playwright-trace-pack test-results
+pnpm exec playwright-trace-pack test-results
 ```
 
 ```sh
-pnpm dlx @hiogawa/playwright-trace-pack test-results/foo/trace.zip --output trace.html
+pnpm exec playwright-trace-pack test-results/foo/trace.zip --output trace.html
 ```
 
 Directories are searched recursively for files named `trace.zip` or `*.trace.zip`. When multiple traces are found, the generated page includes a searchable trace picker.
