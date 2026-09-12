@@ -60,7 +60,7 @@ jobs:
         id: upload-report
         if: always()
         with:
-          path: examples/basic/playwright-traces.html
+          path: examples/basic/test-results/trace-pack.html
           archive: false
           if-no-files-found: ignore
           retention-days: 7

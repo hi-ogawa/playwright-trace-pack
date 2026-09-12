@@ -9,8 +9,29 @@ import { expect, test } from "@playwright/test";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const exampleDirectory = resolve(repositoryRoot, "examples/basic");
-const outputFile = resolve(exampleDirectory, "playwright-traces.html");
+const outputFile = resolve(exampleDirectory, "test-results/trace-pack.html");
 const testResults = resolve(exampleDirectory, "test-results");
+
+test("reporter follows the command-line output directory", async ({}, testInfo) => {
+  const outputDir = testInfo.outputPath("custom-results");
+  const playwrightCli = resolve(repositoryRoot, "node_modules/@playwright/test/cli.js");
+  await execFileAsync(
+    process.execPath,
+    [
+      playwrightCli,
+      "test",
+      "--config",
+      resolve(exampleDirectory, "playwright.config.ts"),
+      "--output",
+      outputDir,
+    ],
+    { cwd: repositoryRoot },
+  );
+
+  const html = await readFile(resolve(outputDir, "trace-pack.html"), "utf8");
+  expect(html).toContain("edits a todo list");
+  expect(html).toContain("captures network and console activity");
+});
 
 test("example fixture generates and opens a trace pack", async ({ page }) => {
   await rm(outputFile, { force: true });

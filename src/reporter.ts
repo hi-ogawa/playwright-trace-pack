@@ -13,12 +13,18 @@ export interface TracePackReporterOptions {
 
 export default class TracePackReporter implements Reporter {
   private readonly entries: TraceEntry[] = [];
-  private rootDir = process.cwd();
+  private outputFile = resolve("test-results", "trace-pack.html");
 
   constructor(private readonly options: TracePackReporterOptions = {}) {}
 
   onBegin(config: FullConfig): void {
-    this.rootDir = config.configFile ? dirname(config.configFile) : process.cwd();
+    const configDir = config.configFile ? dirname(config.configFile) : process.cwd();
+    this.outputFile = this.options.outputFile
+      ? resolve(configDir, this.options.outputFile)
+      : resolve(
+          config.projects[0]?.outputDir || resolve(configDir, "test-results"),
+          "trace-pack.html",
+        );
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
@@ -45,7 +51,7 @@ export default class TracePackReporter implements Reporter {
     if (!this.entries.length) return;
 
     await packTraces(this.entries, {
-      outputFile: resolve(this.rootDir, this.options.outputFile || "playwright-traces.html"),
+      outputFile: this.outputFile,
       title: this.options.title,
       viewerUrl: this.options.viewerUrl,
     });

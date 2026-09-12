@@ -10,14 +10,5 @@ export default defineConfig({
     trace: "on",
     viewport: { width: 900, height: 600 },
   },
-  reporter: [
-    ["line"],
-    [
-      "../../src/reporter.ts",
-      {
-        outputFile: "playwright-traces.html",
-        title: "playwright-trace-pack example",
-      },
-    ],
-  ],
+  reporter: [["line"], ["../../src/reporter.ts"]],
 });

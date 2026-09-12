@@ -22,20 +22,14 @@ Directories are searched recursively for files named `trace.zip` or `*.trace.zip
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-  reporter: [
-    ["line"],
-    [
-      "@hiogawa/playwright-trace-pack/reporter",
-      {
-        outputFile: "playwright-traces.html",
-        include: "failed",
-      },
-    ],
-  ],
+  use: { trace: "on" },
+  reporter: [["line"], ["@hiogawa/playwright-trace-pack/reporter"]],
 });
 ```
 
-The reporter collects Playwright trace attachments and creates the HTML file after the test run.
+The reporter collects all available Playwright trace attachments and creates `trace-pack.html` in the first configured project’s `outputDir`, normally `test-results`, after the test run. This also respects a custom output directory or Playwright’s `--output` option.
+
+Reporter options are optional. Use `include: "failed"` to exclude passed and skipped tests, or `outputFile` to choose a different path. Relative `outputFile` paths resolve from the Playwright config directory.
 
 ## Example
 
@@ -45,7 +39,7 @@ Run the complete fixture to generate a multi-trace HTML file:
 pnpm example
 ```
 
-Then open `examples/basic/playwright-traces.html`. The fixture is described in `examples/basic/README.md`.
+Then open `examples/basic/test-results/trace-pack.html`. The fixture is described in `examples/basic/README.md`.
 
 ## GitHub Actions
 
@@ -54,10 +48,10 @@ Then open `examples/basic/playwright-traces.html`. The fixture is described in `
   run: pnpm playwright test
 
 - name: Upload traces
-  if: always() && hashFiles('playwright-traces.html') != ''
+  if: always() && hashFiles('test-results/trace-pack.html') != ''
   uses: actions/upload-artifact@v7
   with:
-    path: playwright-traces.html
+    path: test-results/trace-pack.html
     archive: false
 ```
 
