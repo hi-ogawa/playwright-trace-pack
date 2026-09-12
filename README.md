@@ -22,20 +22,22 @@ Directories are searched recursively for files named `trace.zip` or `*.trace.zip
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
+  use: {
+    trace: "retain-on-failure",
+  },
   reporter: [
     ["line"],
     [
       "@hiogawa/playwright-trace-pack/reporter",
       {
         outputFile: "playwright-traces.html",
-        include: "failed",
       },
     ],
   ],
 });
 ```
 
-The reporter collects Playwright trace attachments and creates the HTML file after the test run.
+The reporter packs every Playwright trace attachment into the HTML file after the test run. Use Playwright’s `use.trace` option to control which traces are retained. For example, `"retain-on-failure"` keeps traces for failed tests, while `"on"` keeps traces for all tests.
 
 ## Example
 
