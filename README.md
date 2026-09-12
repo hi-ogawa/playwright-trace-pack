@@ -6,13 +6,13 @@ The trace data is embedded in the generated file. The viewer itself is loaded fr
 
 ## Installation
 
-Choose a build from [pkg.pr.new](https://pkg.pr.new/~/hi-ogawa/playwright-trace-pack) and install its preview URL:
+Install the main branch preview from [pkg.pr.new](https://pkg.pr.new/~/hi-ogawa/playwright-trace-pack):
 
 ```sh
-pnpm add -D "https://pkg.pr.new/hi-ogawa/playwright-trace-pack/@hiogawa/playwright-trace-pack@<commit>"
+pnpm add -D https://pkg.pr.new/hi-ogawa/playwright-trace-pack/@hiogawa/playwright-trace-pack@main
 ```
 
-Replace `<commit>` with the commit SHA shown for the build you want. Use this preview installation for both the CLI and the Playwright reporter.
+Use this preview installation for both the CLI and the Playwright reporter. To select a specific build, replace `main` with a commit SHA from the pkg.pr.new page.
 
 ## CLI
 
