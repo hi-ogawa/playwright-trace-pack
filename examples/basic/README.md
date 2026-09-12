@@ -8,6 +8,6 @@ From the repository root:
 pnpm example
 ```
 
-Open the generated `examples/basic/playwright-traces.html` directly in a browser. The left sidebar switches between the todo interaction trace and the network activity trace.
+Open the generated `examples/basic/test-results/trace-pack.html` directly in a browser. The left sidebar switches between the todo interaction trace and the network activity trace.
 
 The generated file needs an internet connection because it embeds the trace data but loads the official viewer from `trace.playwright.dev`.

@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const exampleDirectory = resolve(repositoryRoot, "examples/basic");
-const outputFile = resolve(exampleDirectory, "playwright-traces.html");
+const outputFile = resolve(exampleDirectory, "test-results/trace-pack.html");
 const testResults = resolve(exampleDirectory, "test-results");
 
 test("example fixture generates and opens a trace pack", async ({ page }) => {
@@ -73,4 +73,25 @@ test("example fixture generates and opens a trace pack", async ({ page }) => {
   expect(new URL(page.url()).searchParams.get("trace")).toBe(networkTraceId);
   await viewer.getByText("After", { exact: true }).first().click();
   await expect(viewer.locator("iframe").first()).toBeAttached();
+});
+
+test("reporter follows the command-line output directory", async ({}, testInfo) => {
+  const outputDir = testInfo.outputPath("custom-results");
+  const playwrightCli = resolve(repositoryRoot, "node_modules/@playwright/test/cli.js");
+  await execFileAsync(
+    process.execPath,
+    [
+      playwrightCli,
+      "test",
+      "--config",
+      resolve(exampleDirectory, "playwright.config.ts"),
+      "--output",
+      outputDir,
+    ],
+    { cwd: repositoryRoot },
+  );
+
+  const html = await readFile(resolve(outputDir, "trace-pack.html"), "utf8");
+  expect(html).toContain("edits a todo list");
+  expect(html).toContain("captures network and console activity");
 });
