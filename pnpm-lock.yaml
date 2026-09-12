@@ -17,6 +17,9 @@ importers:
       oxfmt:
         specifier: ^0.67.0
         version: 0.67.0
+      pkg-pr-new:
+        specifier: 0.0.75
+        version: 0.0.75
       tsdown:
         specifier: ^0.23.0
         version: 0.23.0(tsx@4.23.13)(typescript@7.0.2)
@@ -743,6 +746,10 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
+  pkg-pr-new@0.0.75:
+    resolution: {integrity: sha512-u9mdErTewKSMsr+ceCt8VcNuNP0ro5AXiPXhUVApuEyqr2Zlvt+DdCFBcm+yGWN8mhOdZJ27meIDbnoZgfzpOw==}
+    hasBin: true
+
   playwright-core@1.63.0:
     resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
     engines: {node: '>=20'}
@@ -1274,6 +1281,8 @@ snapshots:
       '@oxfmt/binding-win32-x64-msvc': 0.67.0
 
   picomatch@4.0.7: {}
+
+  pkg-pr-new@0.0.75: {}
 
   playwright-core@1.63.0: {}
 

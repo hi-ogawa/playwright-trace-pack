@@ -1,7 +1,6 @@
 {
   "name": "@hiogawa/playwright-trace-pack",
   "version": "0.0.0",
-  "private": true,
   "bin": {
     "playwright-trace-pack": "./dist/cli.js"
   },
@@ -27,6 +26,7 @@
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.3.1",
     "oxfmt": "^0.67.0",
+    "pkg-pr-new": "0.0.75",
     "tsdown": "^0.23.0",
     "typescript": "^7.0.2"
   },
