@@ -22,6 +22,9 @@
     "test": "playwright test",
     "typecheck": "tsc -b"
   },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.3.1",
