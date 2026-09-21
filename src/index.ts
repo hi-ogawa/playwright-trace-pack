@@ -124,8 +124,6 @@ function renderTracePack(
     #app { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); overflow: hidden; }
     #sidebar { position: relative; display: flex; min-width: 0; overflow: hidden; flex-direction: column; border-right: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
     #sidebar h1 { margin: 0; padding: 16px; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-    #project-label { padding: 0 16px 10px; opacity: .65; font-size: 12px; }
-    #project-label:empty { display: none; }
     .group > summary { display: flex; align-items: center; gap: 5px; padding: 8px 4px; cursor: pointer; list-style: none; font-size: 12px; }
     .group > summary::before { content: '▸'; flex: none; width: 10px; }
     .group[open] > summary::before { content: '▾'; }
@@ -152,7 +150,6 @@ function renderTracePack(
   <div id="app">
     <aside id="sidebar">
       <h1>${escapeHtml(options.title)}</h1>
-      <div id="project-label"></div>
       <input id="filter" type="search" placeholder="Filter traces" aria-label="Filter traces">
       <div id="traces"></div>
       <div id="sidebar-resizer" role="separator" aria-label="Resize trace sidebar" aria-orientation="vertical" aria-valuemin="180" tabindex="0"></div>
@@ -177,9 +174,6 @@ function renderTracePack(
     let selectedTrace = traces.find(trace => trace.id === selectedTraceId)
     let viewerReady = false
     const expandedGroups = new Map()
-    const projects = [...new Set(traces.filter(trace => trace.test).map(trace => trace.test.project))]
-    if (projects.length === 1)
-      document.querySelector('#project-label').textContent = projects[0]
 
 
     function decodeTrace(base64) {
@@ -262,9 +256,7 @@ function renderTracePack(
       }
       for (const [project, files] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
         const projectTraces = [...files.values()].flatMap(tests => [...tests.values()].flat())
-        const projectParent = projects.length > 1
-          ? appendGroup(traceList, ['project', project], project || 'Unnamed project', projectTraces)
-          : traceList
+        const projectParent = appendGroup(traceList, ['project', project], project || 'Unnamed project', projectTraces)
         for (const [file, tests] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
           const fileTraces = [...tests.values()].flat()
           const fileParent = appendGroup(projectParent, ['file', project, file], file, fileTraces)

@@ -94,7 +94,7 @@ test("groups projects, files, tests and attempts while preserving search and lin
   await expect(page.frameLocator("#viewer").locator("body")).toHaveText("Trace loaded");
 });
 
-test("omits the sole project wrapper and searches suite names without splitting title punctuation", async ({
+test("keeps the sole project wrapper and searches suite names without splitting title punctuation", async ({
   page,
 }, info) => {
   // Preserve literal separators and markup-like text in test titles.
@@ -107,8 +107,10 @@ test("omits the sole project wrapper and searches suite names without splitting 
   });
   await page.route("https://viewer.test/**", (route) => route.fulfill({ body: "Viewer" }));
   await page.goto(pathToFileURL(outputFile).href);
-  await expect(page.locator('[data-group-type="project"]')).toHaveCount(0);
-  await expect(page.locator("#project-label")).toHaveText("chromium");
+  await expect(page.locator('[data-group-type="project"]')).toHaveAttribute("open", "");
+  await expect(page.locator('[data-group-type="project"] > summary .group-label')).toHaveText(
+    "chromium",
+  );
   await expect(page.locator('[data-group-type="file"]')).toHaveCount(1);
   await page.getByRole("searchbox").fill("suite");
   await expect(page.locator(".trace-title")).toHaveText("suite › round-trip › <project>");

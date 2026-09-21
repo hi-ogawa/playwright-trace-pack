@@ -41,7 +41,7 @@ The reporter packs every Playwright trace attachment into `trace-pack.html` in t
 
 Use Playwright’s `use.trace` option to control which traces are retained. For example, `"retain-on-failure"` keeps traces for failed tests, while `"on"` keeps traces for all tests.
 
-Reporter-generated packs group traces by project, file, and test. A single project's name appears beneath the heading instead of adding a nesting level. The tree starts expanded and trace rows show only their titles, suite names remain in test labels, and multiple retained attempts appear under their test. Files sort by path and tests follow declaration order rather than completion order.
+Reporter-generated packs group traces by project, file, and test. Single-project packs use the same hierarchy as multi-project packs. The tree starts expanded and trace rows show only their titles, suite names remain in test labels, and multiple retained attempts appear under their test. Files sort by path and tests follow declaration order rather than completion order.
 
 Search matches project, file, suite, and test names and temporarily expands matching groups. Clearing search restores your expansion choices. Opening a trace URL reveals the selected test. CLI packs and entries without reporter metadata keep plain trace rows.
 
