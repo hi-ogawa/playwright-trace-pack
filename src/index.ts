@@ -31,7 +31,6 @@ interface EmbeddedTrace {
   test?: TraceEntry["test"];
   base64: string;
   id: string;
-  size: number;
   title: string;
 }
 
@@ -55,7 +54,6 @@ export async function packTraces(entries: TraceEntry[], options: PackOptions): P
         test: entry.test,
         base64: Buffer.from(data).toString("base64"),
         id: `trace-${index}`,
-        size: data.byteLength,
         title: entry.title || defaultTitle,
       };
     }),
@@ -141,7 +139,6 @@ function renderTracePack(
     .trace:hover { background: color-mix(in srgb, CanvasText 8%, transparent); }
     .trace[aria-current="true"] { background: color-mix(in srgb, Highlight 22%, transparent); }
     .trace-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .trace-size { display: block; margin-top: 3px; opacity: .65; font-size: 11px; }
     #sidebar-resizer { position: absolute; z-index: 1; top: 0; right: 0; width: 5px; height: 100%; cursor: col-resize; touch-action: none; }
     #sidebar-resizer:hover, #sidebar-resizer:focus-visible { background: Highlight; }
     body[data-resizing] { cursor: col-resize; user-select: none; }
@@ -184,14 +181,6 @@ function renderTracePack(
     if (projects.length === 1)
       document.querySelector('#project-label').textContent = projects[0]
 
-
-    function formatBytes(bytes) {
-      if (bytes < 1024)
-        return bytes + ' B'
-      if (bytes < 1024 * 1024)
-        return (bytes / 1024).toFixed(1) + ' KB'
-      return (bytes / 1024 / 1024).toFixed(1) + ' MB'
-    }
 
     function decodeTrace(base64) {
       const chunks = []
@@ -274,18 +263,18 @@ function renderTracePack(
       for (const [project, files] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
         const projectTraces = [...files.values()].flatMap(tests => [...tests.values()].flat())
         const projectParent = projects.length > 1
-          ? appendGroup(traceList, ['project', project], project || 'Unnamed project', projectTraces, true)
+          ? appendGroup(traceList, ['project', project], project || 'Unnamed project', projectTraces)
           : traceList
         for (const [file, tests] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
           const fileTraces = [...tests.values()].flat()
-          const fileParent = appendGroup(projectParent, ['file', project, file], file, fileTraces, false)
+          const fileParent = appendGroup(projectParent, ['file', project, file], file, fileTraces)
           for (const [id, attempts] of tests) {
             const label = attempts[0].test.titlePath.join(' › ')
             if (attempts.length === 1) {
               const trace = attempts[0]
               appendTrace(fileParent, trace, label + (trace.test.retry ? ' · retry ' + trace.test.retry : ''))
             } else {
-              const testParent = appendGroup(fileParent, ['test', project, file, id], label, attempts, false)
+              const testParent = appendGroup(fileParent, ['test', project, file, id], label, attempts)
               for (const trace of attempts)
                 appendTrace(testParent, trace, trace.test.retry ? 'Retry ' + trace.test.retry : 'Initial attempt')
             }
@@ -296,10 +285,10 @@ function renderTracePack(
         appendTrace(traceList, trace, trace.title)
       if (!matches.length) traceList.textContent = 'No matching traces.'
 
-      function appendGroup(parent, path, label, entries, defaultOpen) {
+      function appendGroup(parent, path, label, entries) {
         const key = JSON.stringify(path)
         if (!expandedGroups.has(key))
-          expandedGroups.set(key, defaultOpen || entries.some(trace => trace.id === selectedTrace?.id))
+          expandedGroups.set(key, true)
         const details = document.createElement('details')
         details.className = 'group'
         details.dataset.groupKey = key
@@ -338,10 +327,7 @@ function renderTracePack(
       title.className = 'trace-title'
       title.textContent = label
       title.title = trace.title
-      const size = document.createElement('span')
-      size.className = 'trace-size'
-      size.textContent = formatBytes(trace.size)
-      button.append(title, size)
+      button.append(title)
       button.addEventListener('click', () => selectTrace(trace))
       parent.append(button)
     }

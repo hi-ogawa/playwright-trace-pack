@@ -36,7 +36,7 @@ test("groups projects, files, tests and attempts while preserving search and lin
   );
   await page.goto(pathToFileURL(outputFile).href);
 
-  // Project groups are open, files are sorted and collapsed, and plain entries remain usable.
+  // Project groups are open, files are sorted and expanded, and plain entries remain usable.
   const projects = page.locator('[data-group-type="project"]');
   await expect(projects.locator(":scope > summary .group-label")).toHaveText([
     "chromium",
@@ -49,19 +49,25 @@ test("groups projects, files, tests and attempts while preserving search and lin
     "a.spec.ts",
     "b.spec.ts",
   ]);
-  await expect(files.first()).not.toHaveAttribute("open", "");
+  await expect(files.first()).toHaveAttribute("open", "");
+  await expect(files.nth(1)).toHaveAttribute("open", "");
+  await expect(page.locator(".trace-size")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Unstructured CLI trace/ })).toBeVisible();
 
-  // Expand the first file by keyboard and keep tests in declaration order with grouped retries.
+  // Collapse and reopen the first file by keyboard and keep tests in declaration order with grouped retries.
   await files.first().locator(":scope > summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(files.first()).not.toHaveAttribute("open", "");
   await page.keyboard.press("Enter");
   await expect(files.first()).toHaveAttribute("open", "");
   await expect(files.first().locator(".group-children > .trace .trace-title").first()).toHaveText(
     "suite › first",
   );
   const retryGroup = files.first().locator('[data-group-type="test"]');
-  await retryGroup.locator(":scope > summary").click();
+  await expect(retryGroup).toHaveAttribute("open", "");
   await expect(retryGroup.locator(".trace-title")).toHaveText(["Initial attempt", "Retry 1"]);
+
+  await files.nth(1).locator(":scope > summary").click();
 
   // Filter across the full path, temporarily expanding matching branches without opening a trace.
   const filter = page.getByRole("searchbox", { name: "Filter traces" });
