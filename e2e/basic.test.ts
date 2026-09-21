@@ -58,6 +58,9 @@ test("example fixture generates and opens a trace pack", async ({ page }) => {
   expect(todoIndex).not.toBe(-1);
   expect(networkIndex).not.toBe(-1);
 
+  // A single project starts directly at its collapsed file group.
+  await expect(page.locator('[data-group-type="project"]')).toHaveCount(0);
+  await page.locator('[data-group-type="file"] > summary').click();
   const viewer = page.frameLocator("#viewer");
   await traceButtons.nth(todoIndex).click();
   await expect(viewer.getByText('Fill "Share one HTML file"', { exact: true })).toBeVisible();
