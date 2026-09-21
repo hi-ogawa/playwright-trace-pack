@@ -58,6 +58,9 @@ test("example fixture generates and opens a trace pack", async ({ page }) => {
   expect(todoIndex).not.toBe(-1);
   expect(networkIndex).not.toBe(-1);
 
+  // A single project retains the same expanded project and file groups.
+  await expect(page.locator('[data-group-type="project"]')).toHaveAttribute("open", "");
+  await expect(page.locator('[data-group-type="file"]')).toHaveAttribute("open", "");
   const viewer = page.frameLocator("#viewer");
   await traceButtons.nth(todoIndex).click();
   await expect(viewer.getByText('Fill "Share one HTML file"', { exact: true })).toBeVisible();

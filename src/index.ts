@@ -9,6 +9,15 @@ export interface TraceEntry {
   data?: Uint8Array;
   path?: string;
   title?: string;
+  /** Structured reporter metadata enables project/file/test navigation. */
+  test?: {
+    id: string;
+    project: string;
+    file: string;
+    titlePath: string[];
+    order: number;
+    retry: number;
+  };
 }
 
 export interface PackOptions {
@@ -19,9 +28,9 @@ export interface PackOptions {
 }
 
 interface EmbeddedTrace {
+  test?: TraceEntry["test"];
   base64: string;
   id: string;
-  size: number;
   title: string;
 }
 
@@ -42,9 +51,9 @@ export async function packTraces(entries: TraceEntry[], options: PackOptions): P
         : `Trace ${index + 1}`;
 
       return {
+        test: entry.test,
         base64: Buffer.from(data).toString("base64"),
         id: `trace-${index}`,
-        size: data.byteLength,
         title: entry.title || defaultTitle,
       };
     }),
@@ -115,13 +124,19 @@ function renderTracePack(
     #app { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); overflow: hidden; }
     #sidebar { position: relative; display: flex; min-width: 0; overflow: hidden; flex-direction: column; border-right: 1px solid color-mix(in srgb, CanvasText 18%, transparent); }
     #sidebar h1 { margin: 0; padding: 16px; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+    .group > summary { display: flex; align-items: center; gap: 5px; padding: 8px 4px; cursor: pointer; list-style: none; font-size: 12px; }
+    .group > summary::before { content: '▸'; flex: none; width: 10px; }
+    .group[open] > summary::before { content: '▾'; }
+    .group-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .group-count { margin-left: auto; opacity: .6; flex: none; }
+    .group-children { padding-left: 12px; }
+    .trace:focus-visible, summary:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
     #filter { margin: 0 12px 10px; padding: 7px 9px; border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); border-radius: 5px; background: Canvas; color: CanvasText; }
     #traces { min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 0 8px 12px; }
     .trace { width: 100%; padding: 9px; border: 0; border-radius: 5px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
     .trace:hover { background: color-mix(in srgb, CanvasText 8%, transparent); }
     .trace[aria-current="true"] { background: color-mix(in srgb, Highlight 22%, transparent); }
     .trace-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .trace-size { display: block; margin-top: 3px; opacity: .65; font-size: 11px; }
     #sidebar-resizer { position: absolute; z-index: 1; top: 0; right: 0; width: 5px; height: 100%; cursor: col-resize; touch-action: none; }
     #sidebar-resizer:hover, #sidebar-resizer:focus-visible { background: Highlight; }
     body[data-resizing] { cursor: col-resize; user-select: none; }
@@ -158,14 +173,8 @@ function renderTracePack(
     const selectedTraceId = new URL(window.location.href).searchParams.get('trace')
     let selectedTrace = traces.find(trace => trace.id === selectedTraceId)
     let viewerReady = false
+    const expandedGroups = new Map()
 
-    function formatBytes(bytes) {
-      if (bytes < 1024)
-        return bytes + ' B'
-      if (bytes < 1024 * 1024)
-        return (bytes / 1024).toFixed(1) + ' KB'
-      return (bytes / 1024 / 1024).toFixed(1) + ' MB'
-    }
 
     function decodeTrace(base64) {
       const chunks = []
@@ -210,32 +219,109 @@ function renderTracePack(
       const url = new URL(window.location.href)
       url.searchParams.set('trace', trace.id)
       window.history.replaceState({}, '', url)
-      for (const button of traceList.children)
+      for (const button of traceList.querySelectorAll('.trace'))
         button.setAttribute('aria-current', String(button.dataset.traceId === trace.id))
+      revealSelectedTrace()
       loadSelectedTrace()
+    }
+
+    function revealSelectedTrace() {
+      const button = [...traceList.querySelectorAll('.trace')].find(button => button.dataset.traceId === selectedTrace?.id)
+      if (!button) return
+      for (let parent = button.parentElement; parent !== traceList; parent = parent.parentElement) {
+        if (parent.tagName === 'DETAILS') {
+          parent.open = true
+          expandedGroups.set(parent.dataset.groupKey, true)
+        }
+      }
+      button.scrollIntoView({ block: 'nearest' })
     }
 
     function renderTraceList(query = '') {
       const normalizedQuery = query.trim().toLowerCase()
       traceList.replaceChildren()
-      for (const trace of traces) {
-        if (normalizedQuery && !trace.title.toLowerCase().includes(normalizedQuery))
-          continue
-        const button = document.createElement('button')
-        button.className = 'trace'
-        button.dataset.traceId = trace.id
-        button.setAttribute('aria-current', String(trace.id === selectedTrace?.id))
-        const title = document.createElement('span')
-        title.className = 'trace-title'
-        title.textContent = trace.title
-        title.title = trace.title
-        const size = document.createElement('span')
-        size.className = 'trace-size'
-        size.textContent = formatBytes(trace.size)
-        button.append(title, size)
-        button.addEventListener('click', () => selectTrace(trace))
-        traceList.append(button)
+      const matches = traces.filter(trace => {
+        const path = trace.test ? [trace.test.project, trace.test.file, ...trace.test.titlePath].join(' ') : ''
+        return (trace.title + ' ' + path).toLowerCase().includes(normalizedQuery)
+      })
+      const grouped = new Map()
+      for (const trace of matches.filter(trace => trace.test).sort((a, b) => a.test.order - b.test.order || a.test.retry - b.test.retry)) {
+        const meta = trace.test
+        if (!grouped.has(meta.project)) grouped.set(meta.project, new Map())
+        const files = grouped.get(meta.project)
+        if (!files.has(meta.file)) files.set(meta.file, new Map())
+        const tests = files.get(meta.file)
+        if (!tests.has(meta.id)) tests.set(meta.id, [])
+        tests.get(meta.id).push(trace)
       }
+      for (const [project, files] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
+        const projectTraces = [...files.values()].flatMap(tests => [...tests.values()].flat())
+        const projectParent = appendGroup(traceList, ['project', project], project || 'Unnamed project', projectTraces)
+        for (const [file, tests] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
+          const fileTraces = [...tests.values()].flat()
+          const fileParent = appendGroup(projectParent, ['file', project, file], file, fileTraces)
+          for (const [id, attempts] of tests) {
+            const label = attempts[0].test.titlePath.join(' › ')
+            if (attempts.length === 1) {
+              const trace = attempts[0]
+              appendTrace(fileParent, trace, label + (trace.test.retry ? ' · retry ' + trace.test.retry : ''))
+            } else {
+              const testParent = appendGroup(fileParent, ['test', project, file, id], label, attempts)
+              for (const trace of attempts)
+                appendTrace(testParent, trace, trace.test.retry ? 'Retry ' + trace.test.retry : 'Initial attempt')
+            }
+          }
+        }
+      }
+      for (const trace of matches.filter(trace => !trace.test))
+        appendTrace(traceList, trace, trace.title)
+      if (!matches.length) traceList.textContent = 'No matching traces.'
+
+      function appendGroup(parent, path, label, entries) {
+        const key = JSON.stringify(path)
+        if (!expandedGroups.has(key))
+          expandedGroups.set(key, true)
+        const details = document.createElement('details')
+        details.className = 'group'
+        details.dataset.groupKey = key
+        details.dataset.groupType = path[0]
+        details.open = normalizedQuery ? true : expandedGroups.get(key)
+        const summary = document.createElement('summary')
+        const title = document.createElement('span')
+        title.className = 'group-label'
+        title.textContent = label
+        title.title = label
+        const count = document.createElement('span')
+        count.className = 'group-count'
+        const total = path[0] === 'test' ? entries.length : new Set(entries.map(trace => trace.test.id)).size
+        count.textContent = String(total)
+        count.setAttribute('aria-label', total + (path[0] === 'test' ? ' traces' : ' tests'))
+        summary.append(title, count)
+        const children = document.createElement('div')
+        children.className = 'group-children'
+        summary.addEventListener('click', event => {
+          event.preventDefault()
+          details.open = !details.open
+          if (!normalizedQuery) expandedGroups.set(key, details.open)
+        })
+        details.append(summary, children)
+        parent.append(details)
+        return children
+      }
+    }
+
+    function appendTrace(parent, trace, label) {
+      const button = document.createElement('button')
+      button.className = 'trace'
+      button.dataset.traceId = trace.id
+      button.setAttribute('aria-current', String(trace.id === selectedTrace?.id))
+      const title = document.createElement('span')
+      title.className = 'trace-title'
+      title.textContent = label
+      title.title = trace.title
+      button.append(title)
+      button.addEventListener('click', () => selectTrace(trace))
+      parent.append(button)
     }
 
     window.addEventListener('message', event => {
@@ -275,6 +361,7 @@ function renderTracePack(
     })
     window.addEventListener('resize', () => resizeSidebar(sidebar.getBoundingClientRect().width))
     renderTraceList()
+    revealSelectedTrace()
     resizeSidebar(sidebar.getBoundingClientRect().width)
     viewer.src = viewerUrl
 
