@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
@@ -103,34 +102,28 @@ export async function findTraceFiles(inputs: string[]): Promise<string[]> {
 }
 
 /**
- * Collects every trace's files into one buffer, storing identical files once.
- * Traces from one test run share most of their resources, such as the app's
- * scripts and stylesheets, and their DOM snapshots repeat across tests. zstd
- * with a window as large as the buffer finds those repeats, which deflate's
- * 32 KB window inside each trace zip cannot.
+ * Collects every trace's files into one buffer for one zstd pass. Traces from
+ * one test run repeat the same resources and DOM snapshots, and a window as
+ * large as the buffer reaches every earlier copy, which deflate's 32 KB window
+ * inside each trace zip cannot. That also makes storing identical files once
+ * unnecessary.
  */
 function createFileBlob() {
-  const indexByHash = new Map<string, number>();
   const chunks: Uint8Array[] = [];
   const files: [number, number][] = [];
   let offset = 0;
   return {
     add(bytes: Uint8Array): number {
-      const hash = createHash("sha1").update(bytes).digest("hex");
-      let index = indexByHash.get(hash);
-      if (index === undefined) {
-        index = files.length;
-        indexByHash.set(hash, index);
-        files.push([offset, bytes.length]);
-        chunks.push(bytes);
-        offset += bytes.length;
-      }
-      return index;
+      files.push([offset, bytes.length]);
+      chunks.push(bytes);
+      offset += bytes.length;
+      return files.length - 1;
     },
     finish(): PackedFiles {
       const compressed = zstdCompressSync(Buffer.concat(chunks), {
         params: {
-          [constants.ZSTD_c_compressionLevel]: 19,
+          // Level 19 is about 10% smaller but 35 times slower
+          [constants.ZSTD_c_compressionLevel]: 9,
           [constants.ZSTD_c_windowLog]: Math.min(31, Math.max(10, Math.ceil(Math.log2(offset)))),
         },
       });
