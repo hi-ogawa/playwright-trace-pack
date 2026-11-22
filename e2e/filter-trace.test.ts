@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { zstdDecompressSync } from "node:zlib";
 
 import { expect, test } from "@playwright/test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
@@ -144,10 +145,11 @@ test("filtered trace keeps styled DOM snapshots in the official viewer", async (
     excludeResponseBody: ({ url }) => new URL(url).pathname.endsWith(".sf2"),
   });
   const html = await readFile(htmlPath, "utf8");
-  const encoded = JSON.parse(html.match(/const traces = (.*)/)![1])[0].base64;
-  const filtered = Buffer.from(encoded, "base64");
-  expect(original.length - filtered.length).toBeGreaterThan(200 * 1024);
-  const archive = unzipSync(filtered);
+  const unfilteredPath = testInfo.outputPath("unfiltered.html");
+  await packTraces([{ path: trace }], { outputFile: unfilteredPath });
+  const unfiltered = await readFile(unfilteredPath, "utf8");
+  expect(unfiltered.length - html.length).toBeGreaterThan(200 * 1024);
+  const archive = readPackedTrace(html, 0);
   const network = strFromU8(archive["trace.network"])
     .trim()
     .split("\n")
@@ -179,3 +181,16 @@ test("filtered trace keeps styled DOM snapshots in the official viewer", async (
   await expect(snapshot.locator("img")).toHaveJSProperty("naturalWidth", 40);
   await page.screenshot({ path: testInfo.outputPath("filtered-viewer.png") });
 });
+
+function readPackedTrace(html: string, index: number): Record<string, Uint8Array> {
+  const read = (name: string) => JSON.parse(html.match(new RegExp(`const ${name} = (.*)`))![1]);
+  const blob = zstdDecompressSync(Buffer.from(read("packedBlob"), "base64"));
+  const files: [number, number][] = read("packedFiles");
+  const entries: [string, number][] = read("traces")[index].entries;
+  return Object.fromEntries(
+    entries.map(([name, file]) => {
+      const [offset, length] = files[file];
+      return [name, blob.subarray(offset, offset + length)];
+    }),
+  );
+}
