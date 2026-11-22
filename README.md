@@ -4,6 +4,8 @@ Pack one or more Playwright trace ZIP files into a single HTML file that opens t
 
 The trace data is embedded in the generated file. The viewer itself is loaded from `https://trace.playwright.dev`, so the result is a single-file artifact but is not available offline.
 
+Traces from one test run repeat the same resources and DOM snapshots, so the file compresses the unzipped files of all traces together with zstd. A pack is usually several times smaller than the trace ZIP files it holds. Packing requires Node.js 22.15 or later.
+
 ## Installation
 
 Install the main branch preview from [pkg.pr.new](https://pkg.pr.new/~/hi-ogawa/playwright-trace-pack):

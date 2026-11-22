@@ -23,7 +23,8 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "fzstd": "^0.1.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -42,7 +43,7 @@
     }
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.15"
   },
   "packageManager": "pnpm@11.24.0"
 }

@@ -1,12 +1,13 @@
 import { pathToFileURL } from "node:url";
 
 import { expect, test } from "@playwright/test";
+import { zipSync } from "fflate";
 
 import { packTraces, type TraceEntry } from "../src/index.js";
 
 function entry(project: string, file: string, id: string, order: number, retry = 0): TraceEntry {
   return {
-    data: new Uint8Array([1, 2, 3]),
+    data: zipSync({ "trace.trace": new Uint8Array([1, 2, 3]) }),
     title: `${project} › ${file} › suite › ${id}`,
     test: { project, file, id, order, retry, titlePath: ["suite", id] },
   };
@@ -24,7 +25,7 @@ test("groups projects, files, tests and attempts while preserving search and lin
       entry("chromium", "a.spec.ts", "second", 1, 1),
       entry("chromium", "a.spec.ts", "first", 0),
       entry("chromium", "a.spec.ts", "second", 1),
-      { data: new Uint8Array([4]), title: "Unstructured CLI trace" },
+      { data: zipSync({ "trace.trace": new Uint8Array([4]) }), title: "Unstructured CLI trace" },
     ],
     { outputFile, viewerUrl: "https://viewer.test/" },
   );

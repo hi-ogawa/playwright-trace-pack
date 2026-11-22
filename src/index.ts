@@ -1,5 +1,9 @@
 import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
+import { constants, zstdCompressSync } from "node:zlib";
+
+import { unzipSync } from "fflate";
 
 import { filterTrace, type TraceResponse } from "./filter-trace.js";
 
@@ -29,14 +33,22 @@ export interface PackOptions {
 
 interface EmbeddedTrace {
   test?: TraceEntry["test"];
-  base64: string;
+  /** Each zip entry's name and its index into the packed files */
+  entries: [string, number][];
   id: string;
   title: string;
+}
+
+interface PackedFiles {
+  /** Offset and length of each file in the decompressed blob */
+  files: [number, number][];
+  base64: string;
 }
 
 export async function packTraces(entries: TraceEntry[], options: PackOptions): Promise<void> {
   if (!entries.length) throw new Error("At least one trace is required");
 
+  const blob = createFileBlob();
   const traces = await Promise.all(
     entries.map(async (entry, index): Promise<EmbeddedTrace> => {
       if (!entry.path && !entry.data)
@@ -52,14 +64,14 @@ export async function packTraces(entries: TraceEntry[], options: PackOptions): P
 
       return {
         test: entry.test,
-        base64: Buffer.from(data).toString("base64"),
+        entries: Object.entries(unzipSync(data)).map(([name, bytes]) => [name, blob.add(bytes)]),
         id: `trace-${index}`,
         title: entry.title || defaultTitle,
       };
     }),
   );
 
-  const html = renderTracePack(traces, {
+  const html = await renderTracePack(traces, blob.finish(), {
     title: options.title || (traces.length === 1 ? traces[0].title : "Playwright traces"),
     viewerUrl: options.viewerUrl || "https://trace.playwright.dev/",
   });
@@ -89,15 +101,47 @@ export async function findTraceFiles(inputs: string[]): Promise<string[]> {
   return [...files].sort();
 }
 
+/**
+ * Collects every trace's files into one buffer for one zstd pass. Traces from
+ * one test run repeat the same resources and DOM snapshots, and a window as
+ * large as the buffer reaches every earlier copy, which deflate's 32 KB window
+ * inside each trace zip cannot. That also makes storing identical files once
+ * unnecessary.
+ */
+function createFileBlob() {
+  const chunks: Uint8Array[] = [];
+  const files: [number, number][] = [];
+  let offset = 0;
+  return {
+    add(bytes: Uint8Array): number {
+      files.push([offset, bytes.length]);
+      chunks.push(bytes);
+      offset += bytes.length;
+      return files.length - 1;
+    },
+    finish(): PackedFiles {
+      const compressed = zstdCompressSync(Buffer.concat(chunks), {
+        params: {
+          // Level 19 is about 10% smaller but 35 times slower
+          [constants.ZSTD_c_compressionLevel]: 9,
+          [constants.ZSTD_c_windowLog]: Math.min(31, Math.max(10, Math.ceil(Math.log2(offset)))),
+        },
+      });
+      return { files, base64: compressed.toString("base64") };
+    },
+  };
+}
+
 function isTraceFile(path: string): boolean {
   const name = basename(path).toLowerCase();
   return name === "trace.zip" || name.endsWith(".trace.zip");
 }
 
-function renderTracePack(
+async function renderTracePack(
   traces: EmbeddedTrace[],
+  packed: PackedFiles,
   options: { title: string; viewerUrl: string },
-): string {
+): Promise<string> {
   const viewerUrl = new URL(options.viewerUrl);
   if (
     viewerUrl.protocol !== "https:" &&
@@ -105,7 +149,15 @@ function renderTracePack(
   )
     throw new Error("Viewer URL must use HTTPS or local HTTP");
 
+  // Browsers' DecompressionStream has no zstd, so the page inlines a small decoder
+  const require = createRequire(import.meta.url);
+  const zstdDecoder = await fs.readFile(
+    resolve(dirname(require.resolve("fzstd")), "../umd/index.js"),
+    "utf8",
+  );
   const serializedTraces = serializeForInlineScript(traces);
+  const serializedFiles = serializeForInlineScript(packed.files);
+  const serializedBlob = serializeForInlineScript(packed.base64);
   const serializedTitle = serializeForInlineScript(options.title);
   const serializedViewerUrl = serializeForInlineScript(viewerUrl.toString());
   const serializedViewerOrigin = serializeForInlineScript(viewerUrl.origin);
@@ -159,8 +211,11 @@ function renderTracePack(
       <iframe id="viewer" title="Playwright Trace Viewer"></iframe>
     </main>
   </div>
+  <script>${zstdDecoder}</script>
   <script>
     const traces = ${serializedTraces}
+    const packedFiles = ${serializedFiles}
+    const packedBlob = ${serializedBlob}
     const packTitle = ${serializedTitle}
     const viewerUrl = ${serializedViewerUrl}
     const viewerOrigin = ${serializedViewerOrigin}
@@ -176,7 +231,18 @@ function renderTracePack(
     const expandedGroups = new Map()
 
 
-    function decodeTrace(base64) {
+    let filesPromise
+
+    // Decompress all files once, on the first trace opened
+    function loadFiles() {
+      filesPromise ??= (async () => {
+        const buffer = fzstd.decompress(await decodeBase64(packedBlob))
+        return packedFiles.map(([offset, length]) => buffer.subarray(offset, offset + length))
+      })()
+      return filesPromise
+    }
+
+    function decodeBase64(base64) {
       const chunks = []
       const chunkSize = 1024 * 1024
       for (let offset = 0; offset < base64.length; offset += chunkSize) {
@@ -186,18 +252,73 @@ function renderTracePack(
           bytes[index] = binary.charCodeAt(index)
         chunks.push(bytes)
       }
-      return new Blob(chunks, { type: 'application/zip' })
+      return new Blob(chunks).bytes()
     }
 
-    function loadSelectedTrace() {
+    // Rebuild the trace zip without compression, which the viewer reads like any other zip
+    function createZip(entries) {
+      const encoder = new TextEncoder()
+      const localParts = []
+      const centralParts = []
+      let offset = 0
+      for (const [name, data] of entries) {
+        const nameBytes = encoder.encode(name)
+        const crc = crc32(data)
+        const local = new DataView(new ArrayBuffer(30))
+        local.setUint32(0, 0x04034b50, true)
+        local.setUint16(4, 20, true)
+        local.setUint32(14, crc, true)
+        local.setUint32(18, data.length, true)
+        local.setUint32(22, data.length, true)
+        local.setUint16(26, nameBytes.length, true)
+        const central = new DataView(new ArrayBuffer(46))
+        central.setUint32(0, 0x02014b50, true)
+        central.setUint16(4, 20, true)
+        central.setUint16(6, 20, true)
+        central.setUint32(16, crc, true)
+        central.setUint32(20, data.length, true)
+        central.setUint32(24, data.length, true)
+        central.setUint16(28, nameBytes.length, true)
+        central.setUint32(42, offset, true)
+        localParts.push(local, nameBytes, data)
+        centralParts.push(central, nameBytes)
+        offset += 30 + nameBytes.length + data.length
+      }
+      const centralSize = centralParts.reduce((size, part) => size + part.byteLength, 0)
+      const end = new DataView(new ArrayBuffer(22))
+      end.setUint32(0, 0x06054b50, true)
+      end.setUint16(8, entries.length, true)
+      end.setUint16(10, entries.length, true)
+      end.setUint32(12, centralSize, true)
+      end.setUint32(16, offset, true)
+      return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' })
+    }
+
+    let crcTable
+    function crc32(data) {
+      crcTable ??= Array.from({ length: 256 }, (_, n) => {
+        for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1
+        return n >>> 0
+      })
+      let crc = 0xffffffff
+      for (let index = 0; index < data.length; index++)
+        crc = crcTable[(crc ^ data[index]) & 0xff] ^ (crc >>> 8)
+      return (crc ^ 0xffffffff) >>> 0
+    }
+
+    async function loadSelectedTrace() {
       if (!viewerReady || !selectedTrace)
         return
-      status.textContent = 'Opening ' + selectedTrace.title + '…'
+      const loading = selectedTrace
+      status.textContent = 'Opening ' + loading.title + '…'
       status.hidden = false
-      const trace = decodeTrace(selectedTrace.base64)
+      const files = await loadFiles()
+      if (loading !== selectedTrace)
+        return
+      const trace = createZip(loading.entries.map(([name, index]) => [name, files[index]]))
       viewer.contentWindow.postMessage({ method: 'load', params: { trace } }, viewerOrigin)
       status.hidden = true
-      document.title = selectedTrace.title + ' · ' + packTitle
+      document.title = loading.title + ' · ' + packTitle
     }
 
     function showTraceSelection() {
